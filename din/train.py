@@ -1,9 +1,14 @@
+import sys
+sys.path.append("/home/fl237079/workspace/BladeDISC/examples/TensorFlow/common")
+import disc_init
+
 import os
 import time
 import pickle
 import random
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import sys
 from input import DataInput, DataInputTest
 from model import Model
@@ -20,10 +25,10 @@ predict_users_num = 1000
 predict_ads_num = 100
 
 with open('dataset.pkl', 'rb') as f:
-  train_set = pickle.load(f)
-  test_set = pickle.load(f)
-  cate_list = pickle.load(f)
-  user_count, item_count, cate_count = pickle.load(f)
+  train_set = pickle.load(f, encoding='latin1')
+  test_set = pickle.load(f, encoding='latin1')
+  cate_list = pickle.load(f, encoding='latin1')
+  user_count, item_count, cate_count = pickle.load(f, encoding='latin1')
 
 best_auc = 0.0
 def calc_auc(raw_arr):
@@ -88,7 +93,7 @@ def _test(sess, model):
   auc_sum = 0.0
   score_arr = []
   predicted_users_num = 0
-  print "test sub items"
+  print("test sub items")
   for _, uij in DataInputTest(test_set, predict_batch_size):
     if predicted_users_num >= predict_users_num:
         break
@@ -108,13 +113,16 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
   sys.stdout.flush()
   lr = 1.0
   start_time = time.time()
-  for _ in range(50):
+  total = 0
+  cnt = 0
+  for _ in range(1):
 
     random.shuffle(train_set)
 
     epoch_size = round(len(train_set) / train_batch_size)
     loss_sum = 0.0
     for _, uij in DataInput(train_set, train_batch_size):
+      st = time.time()
       loss = model.train(sess, uij, lr)
       loss_sum += loss
 
@@ -128,9 +136,15 @@ with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
       if model.global_step.eval() % 336000 == 0:
         lr = 0.1
+      en = time.time()
+      total += en - st
+      cnt += 1
+      if cnt == 1000:
+          break
 
     print('Epoch %d DONE\tCost time: %.2f' %
           (model.global_epoch_step.eval(), time.time()-start_time))
+    print("Time iter is {} ms".format(total * 1000 / cnt))
     sys.stdout.flush()
     model.global_epoch_step_op.eval()
 
